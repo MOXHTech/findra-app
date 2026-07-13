@@ -1064,7 +1064,7 @@ dependencies = [
 [[package]]
 name = "findra-protocol"
 version = "0.1.1"
-source = "git+file:///Users/yuexiwei/Projects/github/findra-protocol?tag=v0.1.1#c7a621934a637e932ff9c50147ed6bbd32cc7382"
+source = "git+file:///Users/yuexiwei/Projects/github/findra?tag=findra-protocol-v0.1.1#1ea612c6794d7b5399cbb3ba5e99d5469378d255"
 dependencies = [
  "serde",
  "serde_json",

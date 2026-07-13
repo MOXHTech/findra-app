@@ -34,11 +34,15 @@ tauri-specta = { version = "2.0.0-rc.21", features = ["derive", "typescript"] }
 specta-typescript = "0.0.9"
 
 # The ONLY cross-repo dependency this app has: the versioned IPC contract,
-# not findra's core engine/CLI source. Pinned by tag so bumping the
-# protocol version here is a deliberate action, not an incidental one from
-# editing a sibling directory - findra/prd-app's "findra-app 独立仓库开发
-# 设计文档" §1.2 and "findra 命令行库App整洁架构设计" §4.1 (Cargo dependency,
-# no JSON-Schema/codegen middleman). Once findra-protocol is published to
-# crates.io this becomes a plain `findra-protocol = "0.1"` version
-# requirement instead of a git+tag pin - see ROADMAP.md.
-findra-protocol = { git = "file:///Users/yuexiwei/Projects/github/findra-protocol", tag = "v0.1.1" }
+# not findra's core engine/CLI source - findra/prd-app's "findra-app 独立仓库
+# 开发设计文档" §1.2 and "findra 命令行库App整洁架构设计" §4.1 (Cargo dependency,
+# no JSON-Schema/codegen middleman). `findra-protocol` now lives as a
+# workspace member of the `findra` repo (`crates/findra-protocol`) rather
+# than its own standalone repo, but it's still only depended on *by name* -
+# Cargo resolves it out of the tagged commit without pulling in
+# findra-core/findra-daemon/etc. as part of this app's own dependency
+# graph. Git+tag (not a plain local path) so a protocol bump here is a
+# deliberate action, not incidental fallout from editing the sibling
+# checkout. Once findra-protocol is published to crates.io this becomes a
+# plain `findra-protocol = "0.1"` version requirement instead.
+findra-protocol = { git = "file:///Users/yuexiwei/Projects/github/findra", tag = "findra-protocol-v0.1.1" }
