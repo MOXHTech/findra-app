@@ -1,0 +1,44 @@
+[package]
+name = "findra-app"
+version = "0.1.0"
+description = "Findra - graphical front end for the findra file search daemon"
+authors = ["findra"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "findra_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-autostart = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["net", "io-util", "time", "rt-multi-thread", "process"] }
+anyhow = "1"
+thiserror = "1"
+which = "7"
+specta = { version = "2.0.0-rc.22", features = ["derive"] }
+tauri-specta = { version = "2.0.0-rc.21", features = ["derive", "typescript"] }
+specta-typescript = "0.0.9"
+
+# The ONLY cross-repo dependency this app has: the versioned IPC contract,
+# not findra's core engine/CLI source. Pinned by tag so bumping the
+# protocol version here is a deliberate action, not an incidental one from
+# editing a sibling directory - findra/prd-app's "findra-app 独立仓库开发
+# 设计文档" §1.2 and "findra 命令行库App整洁架构设计" §4.1 (Cargo dependency,
+# no JSON-Schema/codegen middleman). Once findra-protocol is published to
+# crates.io this becomes a plain `findra-protocol = "0.1"` version
+# requirement instead of a git+tag pin - see ROADMAP.md.
+findra-protocol = { git = "file:///Users/yuexiwei/Projects/github/findra-protocol", tag = "v0.1.1" }
