@@ -1,4 +1,5 @@
 mod commands;
+mod config_file;
 mod daemon_manager;
 mod ipc_client;
 mod permissions;
@@ -20,8 +21,13 @@ fn specta_builder() -> tauri_specta::Builder {
         commands::rebuild_index,
         commands::check_permission,
         commands::ensure_daemon,
+        commands::open_preferences,
         commands::get_platform,
         commands::check_protocol_version,
+        commands::get_excluded_paths,
+        commands::add_excluded_path,
+        commands::remove_excluded_path,
+        commands::restart_daemon,
     ])
 }
 
@@ -64,6 +70,8 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {

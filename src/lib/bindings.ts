@@ -45,12 +45,64 @@ async ensureDaemon() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Opens (or focuses) the Preferences window - the same action the tray
+ * menu's "偏好设置…" triggers, exposed as a command so the in-app gear
+ * button doesn't have to reimplement window lifecycle logic on the JS
+ * side (see `window.rs::show_preferences`, the single place that's
+ * handled).
+ */
+async openPreferences() : Promise<void> {
+    await TAURI_INVOKE("open_preferences");
+},
 async getPlatform() : Promise<string> {
     return await TAURI_INVOKE("get_platform");
 },
 async checkProtocolVersion() : Promise<Result<VersionCompat, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("check_protocol_version") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getExcludedPaths() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_excluded_paths") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async addExcludedPath(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_excluded_path", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async removeExcludedPath(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("remove_excluded_path", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Restarts the daemon so a just-edited `~/.findra/config.toml` (e.g. a
+ * changed excluded-directories list) takes effect - the daemon only reads
+ * that file at startup. Sends `StopDaemon` and gives it a couple seconds
+ * to actually exit and release its socket/database before spawning a
+ * fresh one - a simplification of findra-cli's own PID-based wait-then-
+ * escalate-to-SIGKILL restart logic (`stop_running_daemon` in
+ * findra-cli/src/main.rs), acceptable here since a slightly slow restart
+ * just delays picking up the config change rather than losing data.
+ */
+async restartDaemon() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("restart_daemon") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

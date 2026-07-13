@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Findra",
+  "mainBinaryName": "findra-app",
   "version": "0.1.0",
   "identifier": "com.findra.app",
   "build": {
@@ -71,9 +72,9 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/findra/findra-desktop/releases/latest/download/latest.json"
+        "https://github.com/findra/findra-app/releases/latest/download/latest.json"
       ],
-      "pubkey": "PLACEHOLDER_UPDATER_PUBKEY_RUN_tauri_signer_generate"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQyQ0YyOTVEQkYyMTA2RDgKUldUWUJpRy9YU25QUXJIT3A4Nzl5bEV1N3NJTjFjM2tvc2x1Q2ZTY0E1aGtrZldwVFBsbnF4eWYK"
     }
   }
 }

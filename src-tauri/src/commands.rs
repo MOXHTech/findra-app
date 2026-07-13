@@ -7,6 +7,7 @@
 //! `lib.rs` is what generates `../src/lib/bindings.ts` - request/response
 //! types included, no hand-written `.d.ts` to keep in sync by hand.
 
+use crate::config_file;
 use crate::daemon_manager;
 use crate::ipc_client;
 use crate::permissions::{self, PermissionStatus};
@@ -60,6 +61,17 @@ pub async fn ensure_daemon(app: AppHandle) -> Result<(), String> {
     daemon_manager::ensure_running(&app).await.map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Opens (or focuses) the Preferences window - the same action the tray
+/// menu's "偏好设置…" triggers, exposed as a command so the in-app gear
+/// button doesn't have to reimplement window lifecycle logic on the JS
+/// side (see `window.rs::show_preferences`, the single place that's
+/// handled).
+#[tauri::command]
+#[specta::specta]
+pub fn open_preferences(app: AppHandle) {
+    crate::window::show_preferences(&app);
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_platform() -> String {
@@ -77,4 +89,43 @@ pub async fn check_protocol_version() -> Result<ipc_client::VersionCompat, Strin
         DaemonResponse::Error(msg) => Err(msg),
         other => Err(format!("unexpected daemon response: {other:?}")),
     }
+}
+
+// --- Preferences: excluded directories ---
+// See config_file.rs's doc comment for why this edits ~/.findra/config.toml
+// directly (untyped, single-key) instead of going through an IPC method
+// that doesn't exist yet.
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_excluded_paths() -> Result<Vec<String>, String> {
+    config_file::get_excluded_paths().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn add_excluded_path(path: String) -> Result<(), String> {
+    config_file::add_excluded_path(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn remove_excluded_path(path: String) -> Result<(), String> {
+    config_file::remove_excluded_path(&path).map_err(|e| e.to_string())
+}
+
+/// Restarts the daemon so a just-edited `~/.findra/config.toml` (e.g. a
+/// changed excluded-directories list) takes effect - the daemon only reads
+/// that file at startup. Sends `StopDaemon` and gives it a couple seconds
+/// to actually exit and release its socket/database before spawning a
+/// fresh one - a simplification of findra-cli's own PID-based wait-then-
+/// escalate-to-SIGKILL restart logic (`stop_running_daemon` in
+/// findra-cli/src/main.rs), acceptable here since a slightly slow restart
+/// just delays picking up the config change rather than losing data.
+#[tauri::command]
+#[specta::specta]
+pub async fn restart_daemon(app: AppHandle) -> Result<(), String> {
+    let _ = ipc_client::send_request(DaemonRequest::StopDaemon).await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    daemon_manager::ensure_running(&app).await.map(|_| ()).map_err(|e| e.to_string())
 }

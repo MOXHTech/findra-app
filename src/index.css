@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/*
+  Design tokens lifted from the PRD mockups (findra_mockup_main_window_table.png,
+  findra_mockup_permission_onboarding.png, findra_mockup_preferences.png,
+  findra_mockup_menubar.png) - warm neutral surfaces with an amber accent
+  (matching the brand's terminal-phosphor amber, prd/findra_icon.svg),
+  light by default with a dark variant since the app runs alongside
+  whatever else is on the user's desktop.
+*/
+:root {
+  --surface-1: #f6f5f3;
+  --surface-2: #ffffff;
+  --border: rgba(20, 18, 14, 0.1);
+  --text-primary: #1c1a17;
+  --text-secondary: #6b6559;
+  --text-muted: #9a9486;
+  --text-accent: #b5730a;
+  --bg-accent: rgba(181, 115, 10, 0.1);
+  --fill-success: #2f9e52;
+  --text-success: #1f7a3f;
+}
+
+:root[data-theme="dark"] {
+  --surface-1: #1a1815;
+  --surface-2: #221f1b;
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #f2efe9;
+  --text-secondary: #a9a294;
+  --text-muted: #756f62;
+  --text-accent: #e0a13f;
+  --bg-accent: rgba(224, 161, 63, 0.14);
+  --fill-success: #3ecb70;
+  --text-success: #4fd483;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-1: #1a1815;
+    --surface-2: #221f1b;
+    --border: rgba(255, 255, 255, 0.1);
+    --text-primary: #f2efe9;
+    --text-secondary: #a9a294;
+    --text-muted: #756f62;
+    --text-accent: #e0a13f;
+    --bg-accent: rgba(224, 161, 63, 0.14);
+    --fill-success: #3ecb70;
+    --text-success: #4fd483;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Text should still be selectable where it's actually content, not chrome. */
+input,
+textarea {
+  user-select: text;
+}
