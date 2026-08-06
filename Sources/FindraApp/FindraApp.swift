@@ -12,6 +12,7 @@ struct FindraApp: App {
             SearchView(model: appModel.search)
                 .frame(minWidth: 860, minHeight: 560)
                 .onAppear {
+                    lifecycleDelegate.configure(daemon: appModel.daemon)
                     appModel.statusItem.configure {
                         appModel.showSearchWindow {
                             openWindow(id: "search")
@@ -69,6 +70,13 @@ final class AppModel: ObservableObject {
 }
 
 final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
+    private var daemon: DaemonClient?
+    private var isTerminating = false
+
+    func configure(daemon: DaemonClient) {
+        self.daemon = daemon
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NotificationCenter.default.addObserver(
             self,
@@ -80,6 +88,22 @@ final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !isTerminating else {
+            return .terminateNow
+        }
+        guard let daemon else {
+            return .terminateNow
+        }
+
+        isTerminating = true
+        Task {
+            try? await daemon.stopDaemon()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     @objc private func windowWillClose() {

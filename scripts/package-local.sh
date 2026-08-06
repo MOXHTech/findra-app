@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-1.1.1}"
+VERSION="${VERSION:-1.1.2}"
 CONFIGURATION="${CONFIGURATION:-release}"
 OUT_DIR="${OUT_DIR:-$ROOT/build}"
 FINDRA_REPO="${FINDRA_REPO:-$ROOT/../findra}"

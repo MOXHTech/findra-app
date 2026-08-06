@@ -31,6 +31,11 @@ final class DaemonProtocolTests: XCTestCase {
         XCTAssertEqual(String(data: data, encoding: .utf8), "\"SubscribeStatus\"")
     }
 
+    func testStopDaemonRequestMatchesDaemonWireShape() throws {
+        let data = try JSONEncoder().encode(DaemonRequest.stopDaemon)
+        XCTAssertEqual(String(data: data, encoding: .utf8), "\"StopDaemon\"")
+    }
+
     func testSearchResponseDecodesExternalTaggedResults() throws {
         let json = """
         {

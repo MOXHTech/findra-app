@@ -12,6 +12,7 @@ protocol DaemonClient: Sendable {
     func removeIndexPath(_ path: String) async throws
     func addExcludedPath(_ path: String) async throws
     func removeExcludedPath(_ path: String) async throws
+    func stopDaemon() async throws
 }
 
 enum DaemonClientError: LocalizedError {
@@ -174,6 +175,17 @@ struct SocketDaemonClient: DaemonClient {
     func removeExcludedPath(_ path: String) async throws {
         switch try await send(.removeExcludedPath(path)) {
         case .indexStarted:
+            return
+        case .error(let message):
+            throw DaemonClientError.daemon(message)
+        default:
+            throw DaemonClientError.unexpectedResponse
+        }
+    }
+
+    func stopDaemon() async throws {
+        switch try await send(.stopDaemon) {
+        case .daemonStopping:
             return
         case .error(let message):
             throw DaemonClientError.daemon(message)

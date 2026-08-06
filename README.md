@@ -10,10 +10,10 @@ Findra is the native macOS desktop app for the `findra` file search daemon. It g
 
 ## Download
 
-Download Findra 1.1.1 from the GitHub Release:
+Download Findra 1.1.2 from the GitHub Release:
 
-- [Findra-1.1.1-macos-arm64.dmg](https://github.com/MOXHTech/findra-app/releases/download/v1.1.1/Findra-1.1.1-macos-arm64.dmg): recommended installer image for Apple Silicon Macs.
-- [Findra-1.1.1-macos-arm64.zip](https://github.com/MOXHTech/findra-app/releases/download/v1.1.1/Findra-1.1.1-macos-arm64.zip): archive fallback.
+- [Findra-1.1.2-macos-arm64.dmg](https://github.com/MOXHTech/findra-app/releases/download/v1.1.2/Findra-1.1.2-macos-arm64.dmg): recommended installer image for Apple Silicon Macs.
+- [Findra-1.1.2-macos-arm64.zip](https://github.com/MOXHTech/findra-app/releases/download/v1.1.2/Findra-1.1.2-macos-arm64.zip): archive fallback.
 - `.sha256` files are published beside each asset for checksum verification.
 
 ## Capabilities
