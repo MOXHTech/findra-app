@@ -1,6 +1,12 @@
+<p align="center">
+  <img src="docs/assets/findra-logo.png" alt="Findra logo" width="128" height="128">
+</p>
+
 # Findra for macOS
 
 Findra is the native macOS desktop app for the `findra` file search daemon. It gives the same indexed, daemon-backed search used by the CLI a Mac-first interface: a main search window, menu-bar launcher, preferences, compatibility checks, bundled daemon startup, and direct access to the local daemon.
+
+![Findra search demo](docs/assets/findra-search-demo.gif)
 
 ## Download
 
