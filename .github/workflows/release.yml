@@ -28,7 +28,7 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   RELEASE_DRAFT: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
   RELEASE_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
-  FINDRA_REPOSITORY: findra/findra
+  FINDRA_REPOSITORY: MOXHTech/findra
 
 jobs:
   publish:
@@ -43,6 +43,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.FINDRA_REPOSITORY }}
+          ref: ${{ env.RELEASE_TAG }}
           path: findra
 
       - name: Test

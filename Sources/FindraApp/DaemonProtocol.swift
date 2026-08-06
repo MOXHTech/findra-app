@@ -1,7 +1,7 @@
 import Foundation
 
-let appVersion = "1.1.0"
-let appProtocolVersion = "1.1.0"
+let appVersion = "1.1.1"
+let appProtocolVersion = "1.1.1"
 
 enum EntryKind: String, Codable, CaseIterable {
     case file = "File"

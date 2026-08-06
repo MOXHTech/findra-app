@@ -32,10 +32,11 @@ flowchart TB
 1. `FindraApp` creates one `AppModel` and a single `Window` scene for the search window.
 2. `StatusItemController` installs a low-contrast template menu-bar icon. Clicking it activates or focuses the existing search window instead of creating duplicates.
 3. `HotKeyCenter` registers the native Option-Space shortcut and uses the same single-window focus path.
-4. `SearchViewModel` subscribes to daemon status updates, reads daemon config, sends paged search requests, applies daemon-backed file type filters where supported, and caches app-side owner metadata for visible rows.
-5. `SocketDaemonClient` opens the local Unix socket, sends framed JSON requests, and decodes framed responses.
-6. `DaemonSupervisor` starts the bundled daemon when the socket is missing.
-7. SwiftUI views render local state only. They do not know socket framing or daemon startup rules.
+4. Closing the search window hides the Dock icon and leaves the menu-bar item active; opening from the menu bar or hotkey restores the regular app window.
+5. `SearchViewModel` subscribes to daemon status updates, reads daemon config, sends paged search requests, applies daemon-backed file type filters where supported, and caches app-side owner metadata for visible rows.
+6. `SocketDaemonClient` opens the local Unix socket, sends framed JSON requests, and decodes framed responses.
+7. `DaemonSupervisor` starts the bundled daemon when the socket is missing.
+8. SwiftUI views render local state only. They do not know socket framing or daemon startup rules.
 
 ## IPC Contract
 

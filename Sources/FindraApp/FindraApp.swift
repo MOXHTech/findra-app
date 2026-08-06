@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct FindraApp: App {
+    @NSApplicationDelegateAdaptor(AppLifecycleDelegate.self) private var lifecycleDelegate
     @StateObject private var appModel = AppModel()
     @Environment(\.openWindow) private var openWindow
 
@@ -57,11 +58,38 @@ final class AppModel: ObservableObject {
     }
 
     func showSearchWindow(openWindow: () -> Void) {
+        NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
         if let window = NSApplication.shared.windows.first(where: { $0.title == "Findra" }) {
             window.makeKeyAndOrderFront(nil)
         } else {
             openWindow()
         }
+    }
+}
+
+final class AppLifecycleDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    @objc private func windowWillClose() {
+        DispatchQueue.main.async {
+            guard NSApplication.shared.windows.allSatisfy({ !$0.isVisible }) else { return }
+            NSApplication.shared.setActivationPolicy(.accessory)
+        }
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
