@@ -44,6 +44,7 @@ jobs:
         with:
           repository: ${{ env.FINDRA_REPOSITORY }}
           ref: ${{ env.RELEASE_TAG }}
+          token: ${{ secrets.FINDRA_REPO_TOKEN }}
           path: findra
 
       - name: Test
