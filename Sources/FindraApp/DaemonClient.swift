@@ -5,9 +5,13 @@ protocol DaemonClient: Sendable {
     func status() async throws -> IndexStats
     func statusUpdates() -> AsyncThrowingStream<IndexStats, Error>
     func search(_ query: SearchQuery) async throws -> [FileEntry]
+    func searchPage(_ query: SearchQuery) async throws -> SearchPage
+    func config() async throws -> ConfigSnapshot
     func rebuildIndex(path: String) async throws
     func addIndexPath(_ path: String) async throws
     func removeIndexPath(_ path: String) async throws
+    func addExcludedPath(_ path: String) async throws
+    func removeExcludedPath(_ path: String) async throws
 }
 
 enum DaemonClientError: LocalizedError {
@@ -101,6 +105,28 @@ struct SocketDaemonClient: DaemonClient {
         }
     }
 
+    func searchPage(_ query: SearchQuery) async throws -> SearchPage {
+        switch try await send(.searchPage(query)) {
+        case .searchPage(let page):
+            return page
+        case .error(let message):
+            throw DaemonClientError.daemon(message)
+        default:
+            throw DaemonClientError.unexpectedResponse
+        }
+    }
+
+    func config() async throws -> ConfigSnapshot {
+        switch try await send(.getConfig) {
+        case .config(let snapshot):
+            return snapshot
+        case .error(let message):
+            throw DaemonClientError.daemon(message)
+        default:
+            throw DaemonClientError.unexpectedResponse
+        }
+    }
+
     func rebuildIndex(path: String) async throws {
         switch try await send(.index(path)) {
         case .indexStarted:
@@ -125,6 +151,28 @@ struct SocketDaemonClient: DaemonClient {
 
     func removeIndexPath(_ path: String) async throws {
         switch try await send(.removeIndexPath(path)) {
+        case .indexStarted:
+            return
+        case .error(let message):
+            throw DaemonClientError.daemon(message)
+        default:
+            throw DaemonClientError.unexpectedResponse
+        }
+    }
+
+    func addExcludedPath(_ path: String) async throws {
+        switch try await send(.addExcludedPath(path)) {
+        case .indexStarted:
+            return
+        case .error(let message):
+            throw DaemonClientError.daemon(message)
+        default:
+            throw DaemonClientError.unexpectedResponse
+        }
+    }
+
+    func removeExcludedPath(_ path: String) async throws {
+        switch try await send(.removeExcludedPath(path)) {
         case .indexStarted:
             return
         case .error(let message):

@@ -32,7 +32,7 @@ flowchart TB
 1. `FindraApp` creates one `AppModel` and a single `Window` scene for the search window.
 2. `StatusItemController` installs a low-contrast template menu-bar icon. Clicking it activates or focuses the existing search window instead of creating duplicates.
 3. `HotKeyCenter` registers the native Option-Space shortcut and uses the same single-window focus path.
-4. `SearchViewModel` subscribes to daemon status updates, sends search requests, applies file type filters, sorts visible results, and caches app-side owner metadata for visible rows.
+4. `SearchViewModel` subscribes to daemon status updates, reads daemon config, sends paged search requests, applies daemon-backed file type filters where supported, and caches app-side owner metadata for visible rows.
 5. `SocketDaemonClient` opens the local Unix socket, sends framed JSON requests, and decodes framed responses.
 6. `DaemonSupervisor` starts the bundled daemon when the socket is missing.
 7. SwiftUI views render local state only. They do not know socket framing or daemon startup rules.
@@ -71,7 +71,6 @@ The app does not persist an index and does not keep a second search database. It
 App-local state is limited to presentation and preferences:
 
 - current query and filters
-- excluded result paths
 - current selected row/path
 - ignored permission warnings
 - visible-row owner cache
@@ -80,6 +79,7 @@ App-local state is limited to presentation and preferences:
 The daemon-owned state includes:
 
 - indexed paths
+- excluded paths
 - file metadata index
 - index database path and size
 - watched path health
@@ -94,7 +94,7 @@ The main window follows an Everything-style dense table:
 - aligned result columns with header sorting
 - bottom status bar for result count, index database, and daemon health
 
-Excluded paths are currently app-side result filters: a hidden path and its descendants are removed from the visible file list after daemon search results arrive. A daemon config API should eventually move this into indexing/query execution so excluded paths can reduce index size and query work too.
+Indexed and excluded path changes go through the daemon config API. Excluded paths are applied during daemon scanning, live event handling, and search, so hidden directories do not remain in the local index.
 
 Table sorting is local-first for responsiveness. Background daemon refreshes are generation-guarded so stale responses cannot overwrite newer UI state.
 
@@ -117,7 +117,3 @@ When the socket is missing, the app starts the bundled daemon. The daemon is not
 ## Release and Packaging
 
 Local packaging builds the Swift app, embeds the daemon from the sibling `findra` repository, ad-hoc signs the bundle, and emits `.dmg`, `.zip`, and `.sha256` files. Public distribution is through GitHub Releases. Developer ID signing and notarization remain release-hardening work when credentials are available.
-
-## Legacy PRD Material
-
-Earlier PRD drafts are historical references only. They contained obsolete WebView/Tauri/cross-platform plans and should not drive implementation. Any useful product idea from those drafts should be reintroduced through `ROADMAP.md` or a current issue before implementation.

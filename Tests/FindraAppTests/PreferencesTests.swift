@@ -3,17 +3,15 @@ import XCTest
 
 @MainActor
 final class PreferencesTests: XCTestCase {
-    func testExcludedPathsMatchPathAndDescendantsOnly() {
+    func testPermissionWarningIgnoreListPersists() {
         let suiteName = "FindraAppTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let preferences = PreferencesViewModel(defaults: defaults)
 
-        preferences.addExcludedPath("/Users/test/Library/Application Scripts")
+        preferences.ignorePermissionWarning(path: "/Users/test/Library/Application Scripts")
 
-        XCTAssertTrue(preferences.isPathExcluded("/Users/test/Library/Application Scripts"))
-        XCTAssertTrue(preferences.isPathExcluded("/Users/test/Library/Application Scripts/com.example/file.txt"))
-        XCTAssertFalse(preferences.isPathExcluded("/Users/test/Library/Application Scripts Backup/file.txt"))
-        XCTAssertFalse(preferences.isPathExcluded("/Users/test/Documents/file.txt"))
+        XCTAssertTrue(preferences.isPermissionWarningIgnored("/Users/test/Library/Application Scripts"))
+        XCTAssertFalse(preferences.isPermissionWarningIgnored("/Users/test/Documents"))
     }
 }

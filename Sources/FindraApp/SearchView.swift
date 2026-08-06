@@ -35,6 +35,7 @@ struct SearchView: View {
         .background(FindraPalette.windowBackground(colorScheme))
         .task {
             model.startStatusSubscription()
+            model.refreshStatus()
             await model.runSearch()
         }
     }
@@ -75,13 +76,6 @@ struct SearchView: View {
                     Divider()
                     TextField("Path starts with", text: $model.pathFilter)
                     TextField("Extensions, e.g. swift,md", text: $model.extensionFilter)
-                    Divider()
-                    Picker("Visible rows", selection: $model.resultLimit) {
-                        Text("300").tag(300)
-                        Text("1,000").tag(1_000)
-                        Text("10,000").tag(10_000)
-                        Text("50,000").tag(50_000)
-                    }
                 } label: {
                     Label("Search", systemImage: "line.3.horizontal.decrease.circle")
                 }
@@ -287,6 +281,20 @@ private struct ResultsView: View {
                             onSelect: { model.selectedEntry = entry },
                             actions: actions
                         )
+                        .onAppear {
+                            model.loadNextPageIfNeeded(current: entry)
+                        }
+                    }
+                    if model.isLoadingNextPage {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Loading more")
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.footnote)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                     }
                 }
             }

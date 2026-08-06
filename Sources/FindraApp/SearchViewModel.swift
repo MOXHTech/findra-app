@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import Foundation
 
 @MainActor
@@ -7,6 +6,7 @@ final class SearchViewModel: ObservableObject {
     @Published var query = ""
     @Published var entries: [FileEntry] = []
     @Published var stats: IndexStats?
+    @Published var daemonConfig: ConfigSnapshot?
     @Published var selectedEntry: FileEntry?
     @Published var errorMessage: String?
     @Published var isSearching = false
@@ -17,10 +17,10 @@ final class SearchViewModel: ObservableObject {
         didSet { searchDebounced() }
     }
     @Published var sortBy: FileListSortField = .name {
-        didSet { sortVisibleResultsAndRefresh() }
+        didSet { sortChanged() }
     }
     @Published var descending = false {
-        didSet { sortVisibleResultsAndRefresh() }
+        didSet { sortChanged() }
     }
     @Published var regex = false {
         didSet { searchDebounced() }
@@ -40,9 +40,9 @@ final class SearchViewModel: ObservableObject {
     @Published var extensionFilter = "" {
         didSet { searchDebounced() }
     }
-    @Published var resultLimit = 1_000 {
-        didSet { searchDebounced() }
-    }
+    @Published var totalMatches: UInt64 = 0
+    @Published var nextCursor: Int?
+    @Published var isLoadingNextPage = false
     @Published var ownersByID: [UInt64: String] = [:]
 
     private let daemon: DaemonClient
@@ -53,20 +53,11 @@ final class SearchViewModel: ObservableObject {
     private var lastAutomaticListRefresh = Date.distantPast
     private var searchGeneration: UInt64 = 0
     private var ownerTask: Task<Void, Never>?
-    private var cancellables: Set<AnyCancellable> = []
+    private let pageSize = 1_000
 
     init(daemon: DaemonClient, preferences: PreferencesViewModel) {
         self.daemon = daemon
         self.preferences = preferences
-        preferences.$excludedPaths
-            .dropFirst()
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.objectWillChange.send()
-                    self?.searchDebounced(delay: .milliseconds(80))
-                }
-            }
-            .store(in: &cancellables)
     }
 
     var shouldShowPermissionOnboarding: Bool {
@@ -78,15 +69,17 @@ final class SearchViewModel: ObservableObject {
     }
 
     var excludedPaths: [String] {
-        preferences.excludedPaths
+        daemonConfig?.excludedPaths ?? []
     }
 
     var resultSummary: String {
         if query.trimmingCharacters(in: .whitespacesAndNewlines).count == 1 {
             return "Type at least 2 characters to search"
         }
-        let prefix = entries.count >= resultLimit ? "Showing first" : "Showing"
-        return "\(prefix) \(entries.count.formatted())"
+        guard totalMatches > 0 else {
+            return "Showing \(entries.count.formatted())"
+        }
+        return "Showing \(entries.count.formatted()) of \(totalMatches.formatted())"
     }
 
     var searchPlaceholder: String {
@@ -103,7 +96,7 @@ final class SearchViewModel: ObservableObject {
     }
 
     var versionSummary: String {
-        let daemonVersion = stats?.daemonVersion.nilIfEmpty ?? "1.0.0"
+        let daemonVersion = stats?.daemonVersion.nilIfEmpty ?? "1.1.0"
         return "Findra \(appVersion) · daemon \(daemonVersion)"
     }
 
@@ -173,6 +166,7 @@ final class SearchViewModel: ObservableObject {
         Task {
             do {
                 applyStatus(try await daemon.status())
+                daemonConfig = try await daemon.config()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -224,6 +218,8 @@ final class SearchViewModel: ObservableObject {
             guard generation == searchGeneration else { return }
             entries = []
             selectedEntry = nil
+            totalMatches = 0
+            nextCursor = nil
             errorMessage = nil
             return
         }
@@ -236,11 +232,12 @@ final class SearchViewModel: ObservableObject {
         }
 
         do {
-            let request = makeSearchQuery()
-            let results = try await daemon.search(request)
+            let request = makeSearchQuery(cursor: nil)
+            let page = try await daemon.searchPage(request)
             guard generation == searchGeneration, !Task.isCancelled else { return }
-            entries = locallyFiltered(results)
-            sortVisibleResults()
+            entries = page.entries
+            totalMatches = page.totalMatches
+            nextCursor = page.nextCursor
             loadOwners(for: entries)
             selectedEntry = entries.first
             errorMessage = nil
@@ -250,13 +247,18 @@ final class SearchViewModel: ObservableObject {
             guard generation == searchGeneration else { return }
             entries = []
             selectedEntry = nil
+            totalMatches = 0
+            nextCursor = nil
             errorMessage = error.localizedDescription
         }
     }
 
-    private func sortVisibleResultsAndRefresh() {
-        sortVisibleResults()
-        searchDebounced(delay: .milliseconds(250))
+    private func sortChanged() {
+        if sortBy == .owner {
+            sortVisibleResults()
+        } else {
+            searchDebounced(delay: .milliseconds(250))
+        }
     }
 
     private func sortVisibleResults() {
@@ -346,6 +348,7 @@ final class SearchViewModel: ObservableObject {
                 try await daemon.addIndexPath(normalized)
                 selectedIndexPath = normalized
                 refreshStatus()
+                await refreshConfig()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -361,6 +364,7 @@ final class SearchViewModel: ObservableObject {
                 try await daemon.removeIndexPath(path)
                 selectedIndexPath = nil
                 refreshStatus()
+                await refreshConfig()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -391,14 +395,36 @@ final class SearchViewModel: ObservableObject {
     private func addExcludedPath(_ path: String) {
         let normalized = Self.normalizedInputPath(path)
         guard !normalized.isEmpty else { return }
-        preferences.addExcludedPath(normalized)
-        selectedExcludedPath = preferences.normalizedExcludedPath(normalized)
+        Task {
+            do {
+                isIndexing = true
+                defer { isIndexing = false }
+                try await daemon.addExcludedPath(normalized)
+                selectedExcludedPath = normalized
+                await refreshConfig()
+                refreshStatus()
+                await runSearch()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     func removeSelectedExcludedPath() {
-        guard let path = selectedExcludedPath ?? preferences.excludedPaths.first else { return }
-        preferences.removeExcludedPath(path)
-        selectedExcludedPath = nil
+        guard let path = selectedExcludedPath ?? excludedPaths.first else { return }
+        Task {
+            do {
+                isIndexing = true
+                defer { isIndexing = false }
+                try await daemon.removeExcludedPath(path)
+                selectedExcludedPath = nil
+                await refreshConfig()
+                refreshStatus()
+                await runSearch()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     private func rebuildIndex(path: String) {
@@ -408,6 +434,7 @@ final class SearchViewModel: ObservableObject {
                 defer { isIndexing = false }
                 try await daemon.rebuildIndex(path: path)
                 refreshStatus()
+                await refreshConfig()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -445,7 +472,39 @@ final class SearchViewModel: ObservableObject {
         }
     }
 
-    private func makeSearchQuery() -> SearchQuery {
+    func loadNextPageIfNeeded(current entry: FileEntry) {
+        guard entry.id == entries.last?.id else { return }
+        guard let cursor = nextCursor, !isLoadingNextPage, !isSearching else { return }
+        let generation = searchGeneration
+        isLoadingNextPage = true
+        Task {
+            defer { isLoadingNextPage = false }
+            do {
+                let page = try await daemon.searchPage(makeSearchQuery(cursor: cursor))
+                guard generation == searchGeneration, !Task.isCancelled else { return }
+                entries.append(contentsOf: page.entries)
+                totalMatches = page.totalMatches
+                nextCursor = page.nextCursor
+                loadOwners(for: page.entries)
+            } catch {
+                guard generation == searchGeneration else { return }
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func refreshConfig() async {
+        do {
+            daemonConfig = try await daemon.config()
+            if selectedExcludedPath == nil {
+                selectedExcludedPath = daemonConfig?.excludedPaths.first
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func makeSearchQuery(cursor: Int?) -> SearchQuery {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let pattern = exactName && !trimmedQuery.isEmpty
             ? "^\(NSRegularExpression.escapedPattern(for: trimmedQuery))$"
@@ -457,30 +516,22 @@ final class SearchViewModel: ObservableObject {
         let extensions = manualExtensions.isEmpty
             ? selectedFileType.extensions
             : manualExtensions
+        let kinds = selectedFileType.daemonKinds
 
         return SearchQuery(
             pattern: pattern,
             regex: regex || exactName,
             caseSensitive: caseSensitive,
             pinyin: pinyin && !exactName,
+            kinds: kinds,
             extensions: extensions,
             pathFilter: pathFilter.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             sortBy: sortBy.daemonSortField,
             descending: descending,
-            limit: resultLimit
+            limit: pageSize,
+            cursor: cursor,
+            pageSize: pageSize
         )
-    }
-
-    private func locallyFiltered(_ entries: [FileEntry]) -> [FileEntry] {
-        entries.filter { entry in
-            if preferences.isPathExcluded(entry.path) {
-                return false
-            }
-            if selectedFileType == .folders {
-                return entry.kind == .directory
-            }
-            return true
-        }
     }
 
     func owner(for entry: FileEntry) -> String {
@@ -651,6 +702,15 @@ enum FileTypeFilter: String, CaseIterable {
             ["c", "cc", "cpp", "css", "go", "h", "html", "java", "js", "json", "kt", "m", "mm", "py", "rs", "sh", "swift", "toml", "ts", "tsx", "xml", "yaml", "yml"]
         case .apps:
             ["app"]
+        }
+    }
+
+    var daemonKinds: [EntryKind] {
+        switch self {
+        case .folders:
+            [.directory]
+        default:
+            []
         }
     }
 }

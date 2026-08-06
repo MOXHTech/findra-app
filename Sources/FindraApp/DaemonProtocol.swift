@@ -1,7 +1,7 @@
 import Foundation
 
-let appVersion = "1.0.0"
-let appProtocolVersion = "1.0.0"
+let appVersion = "1.1.0"
+let appProtocolVersion = "1.1.0"
 
 enum EntryKind: String, Codable, CaseIterable {
     case file = "File"
@@ -22,6 +22,7 @@ struct SearchQuery: Codable, Hashable {
     var regex = false
     var caseSensitive = false
     var pinyin = false
+    var kinds: [EntryKind] = []
     var extensions: [String] = []
     var minSize: UInt64?
     var maxSize: UInt64?
@@ -29,12 +30,15 @@ struct SearchQuery: Codable, Hashable {
     var sortBy: SortField = .name
     var descending = false
     var limit: Int? = 10_000
+    var cursor: Int?
+    var pageSize: Int?
 
     enum CodingKeys: String, CodingKey {
         case pattern
         case regex
         case caseSensitive = "case_sensitive"
         case pinyin
+        case kinds
         case extensions
         case minSize = "min_size"
         case maxSize = "max_size"
@@ -42,6 +46,20 @@ struct SearchQuery: Codable, Hashable {
         case sortBy = "sort_by"
         case descending
         case limit
+        case cursor
+        case pageSize = "page_size"
+    }
+}
+
+struct SearchPage: Codable, Hashable {
+    let entries: [FileEntry]
+    let totalMatches: UInt64
+    let nextCursor: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case entries
+        case totalMatches = "total_matches"
+        case nextCursor = "next_cursor"
     }
 }
 
@@ -150,12 +168,28 @@ struct IndexStats: Codable, Hashable {
     }
 }
 
+struct ConfigSnapshot: Codable, Hashable {
+    let indexPaths: [String]
+    let excludedPaths: [String]
+    let autoExcludes: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case indexPaths = "index_paths"
+        case excludedPaths = "excluded_paths"
+        case autoExcludes = "auto_excludes"
+    }
+}
+
 enum DaemonRequest: Encodable {
     case status
     case search(SearchQuery)
+    case searchPage(SearchQuery)
     case index(String)
     case addIndexPath(String)
     case removeIndexPath(String)
+    case getConfig
+    case addExcludedPath(String)
+    case removeExcludedPath(String)
     case subscribeStatus
     case stopDaemon
 
@@ -167,6 +201,9 @@ enum DaemonRequest: Encodable {
         case .search(let query):
             var keyed = encoder.container(keyedBy: CodingKeys.self)
             try keyed.encode(query, forKey: .search)
+        case .searchPage(let query):
+            var keyed = encoder.container(keyedBy: CodingKeys.self)
+            try keyed.encode(query, forKey: .searchPage)
         case .index(let path):
             var keyed = encoder.container(keyedBy: CodingKeys.self)
             try keyed.encode(path, forKey: .index)
@@ -176,6 +213,15 @@ enum DaemonRequest: Encodable {
         case .removeIndexPath(let path):
             var keyed = encoder.container(keyedBy: CodingKeys.self)
             try keyed.encode(path, forKey: .removeIndexPath)
+        case .getConfig:
+            var single = encoder.singleValueContainer()
+            try single.encode("GetConfig")
+        case .addExcludedPath(let path):
+            var keyed = encoder.container(keyedBy: CodingKeys.self)
+            try keyed.encode(path, forKey: .addExcludedPath)
+        case .removeExcludedPath(let path):
+            var keyed = encoder.container(keyedBy: CodingKeys.self)
+            try keyed.encode(path, forKey: .removeExcludedPath)
         case .subscribeStatus:
             var single = encoder.singleValueContainer()
             try single.encode("SubscribeStatus")
@@ -187,15 +233,20 @@ enum DaemonRequest: Encodable {
 
     private enum CodingKeys: String, CodingKey {
         case search = "Search"
+        case searchPage = "SearchPage"
         case index = "Index"
         case addIndexPath = "AddIndexPath"
         case removeIndexPath = "RemoveIndexPath"
+        case addExcludedPath = "AddExcludedPath"
+        case removeExcludedPath = "RemoveExcludedPath"
     }
 }
 
 enum DaemonResponse: Decodable {
     case status(IndexStats)
     case searchResults([FileEntry])
+    case searchPage(SearchPage)
+    case config(ConfigSnapshot)
     case indexStarted
     case daemonStopping
     case error(String)
@@ -218,6 +269,10 @@ enum DaemonResponse: Decodable {
             self = .status(stats)
         } else if let entries = try container.decodeIfPresent([FileEntry].self, forKey: .searchResults) {
             self = .searchResults(entries)
+        } else if let page = try container.decodeIfPresent(SearchPage.self, forKey: .searchPage) {
+            self = .searchPage(page)
+        } else if let config = try container.decodeIfPresent(ConfigSnapshot.self, forKey: .config) {
+            self = .config(config)
         } else if let message = try container.decodeIfPresent(String.self, forKey: .error) {
             self = .error(message)
         } else {
@@ -228,6 +283,8 @@ enum DaemonResponse: Decodable {
     private enum CodingKeys: String, CodingKey {
         case status = "Status"
         case searchResults = "SearchResults"
+        case searchPage = "SearchPage"
+        case config = "Config"
         case error = "Error"
     }
 }

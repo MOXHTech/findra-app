@@ -10,10 +10,10 @@ Findra is the native macOS desktop app for the `findra` file search daemon. It g
 
 ## Download
 
-Download Findra 1.0.0 from the GitHub Release:
+Download Findra 1.1.0 from the GitHub Release:
 
-- [Findra-1.0.0-macos-arm64.dmg](https://github.com/MOXHTech/findra-app/releases/download/1.0.0/Findra-1.0.0-macos-arm64.dmg): recommended installer image for Apple Silicon Macs.
-- [Findra-1.0.0-macos-arm64.zip](https://github.com/MOXHTech/findra-app/releases/download/1.0.0/Findra-1.0.0-macos-arm64.zip): archive fallback.
+- [Findra-1.1.0-macos-arm64.dmg](https://github.com/MOXHTech/findra-app/releases/download/1.1.0/Findra-1.1.0-macos-arm64.dmg): recommended installer image for Apple Silicon Macs.
+- [Findra-1.1.0-macos-arm64.zip](https://github.com/MOXHTech/findra-app/releases/download/1.1.0/Findra-1.1.0-macos-arm64.zip): archive fallback.
 - `.sha256` files are published beside each asset for checksum verification.
 
 ## Capabilities
@@ -24,7 +24,8 @@ Download Findra 1.0.0 from the GitHub Release:
 - Uses the versioned daemon IPC contract instead of embedding the search engine.
 - Search-as-you-type with indexed file, folder, path, size, and modified-time results.
 - Indexed and excluded paths can be added by typing a path directly or choosing one from a native file picker.
-- Configurable excluded paths hide matching files and descendants from the result list.
+- Configurable excluded paths are sent to the daemon, reducing both indexed data and visible search results.
+- Search results are loaded in daemon-backed pages, so the file list can scroll through large indexes without one oversized response.
 - Menu-bar launcher icon that opens the main Findra window.
 - Visible app and daemon versions in the main window.
 - Shared index with the CLI, so installing both does not create duplicate indexes.
