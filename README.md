@@ -1,71 +1,101 @@
-# Findra (Desktop App)
+# Findra for macOS
 
-The graphical front end for [findra](https://github.com/findra/findra) - the same background daemon and index the CLI uses, with a menu-bar/tray-resident search window on top. See `findra`'s `prd-app/findra_完整需求设计说明书.md` for the full product spec.
+Findra is the native macOS desktop app for the `findra` file search daemon. It gives the same indexed, daemon-backed search used by the CLI a Mac-first interface: a main search window, menu-bar launcher, preferences, compatibility checks, bundled daemon startup, and direct access to the local daemon.
 
-This repo is intentionally decoupled from `findra`'s source: it depends only on [`findra-protocol`](https://github.com/findra/findra/tree/main/crates/findra-protocol), the versioned IPC contract crate, not on the core engine/CLI. See `src-tauri/src/ipc_client.rs` for why, and `findra`'s `prd-app/findra-app_独立仓库开发设计文档.md` / `findra_命令行库App整洁架构设计.md` for the design rationale.
+## Download
 
-## Stack
+Download Findra 1.0.0 from the GitHub Release:
 
-Tauri 2 (Rust shell) + React + TypeScript + Vite + Tailwind CSS v4. TS types and typed `invoke()` wrappers (`src/lib/bindings.ts`) are generated directly from the Rust command signatures via `tauri-specta`/`specta` - no hand-written `.d.ts`, no JSON-Schema/codegen middleman.
+- [Findra-1.0.0-macos-arm64.dmg](https://github.com/MOXHTech/findra-app/releases/download/1.0.0/Findra-1.0.0-macos-arm64.dmg): recommended installer image for Apple Silicon Macs.
+- [Findra-1.0.0-macos-arm64.zip](https://github.com/MOXHTech/findra-app/releases/download/1.0.0/Findra-1.0.0-macos-arm64.zip): archive fallback.
+- `.sha256` files are published beside each asset for checksum verification.
+
+## Capabilities
+
+- Native SwiftUI macOS app, designed for the current macOS platform direction.
+- Bundles `findra-daemon` inside the app and starts it automatically when `~/.findra/daemon.sock` is missing.
+- Talks to the daemon over the local Unix domain socket at `~/.findra/daemon.sock`.
+- Uses the versioned daemon IPC contract instead of embedding the search engine.
+- Search-as-you-type with indexed file, folder, path, size, and modified-time results.
+- Indexed and excluded paths can be added by typing a path directly or choosing one from a native file picker.
+- Configurable excluded paths hide matching files and descendants from the result list.
+- Menu-bar launcher icon that opens the main Findra window.
+- Visible app and daemon versions in the main window.
+- Shared index with the CLI, so installing both does not create duplicate indexes.
+
+## Requirements
+
+- macOS 27 target experience.
+- Xcode 26.6 or newer toolchain for local development.
+- The local `findra` repository next to this repository when building packages from source.
+
+## Run
+
+Run the app:
+
+```bash
+swift run Findra
+```
+
+In development, the app can auto-start `../findra/target/release/findra-daemon` or `../findra/target/debug/findra-daemon` if one has already been built. Installed `.app` bundles include `Contents/Resources/vendor-bin/findra-daemon`, so users do not need to start a separate service manually.
 
 ## Development
 
 ```bash
-npm install
-npm run tauri dev
+swift build
+swift test
 ```
 
-The daemon (`findra-daemon`, a separate binary from the `findra` CLI) must be reachable for search results to appear - this app finds one already running, or looks for `findra-daemon` on PATH / bundled under `vendor-bin/` and spawns it (see `src-tauri/src/daemon_manager.rs`). Building `findra-daemon` from the sibling `findra` repo and putting it on PATH is the easiest way to develop against a real daemon.
+There are no external Swift package dependencies. The app uses SwiftUI, Foundation, AppKit, and Darwin socket APIs from the platform SDK.
 
-Regenerate `src/lib/bindings.ts` without launching the GUI (e.g. after changing a command signature, or on a fresh clone before the frontend can typecheck):
+Build a local `.app` bundle:
 
 ```bash
-cd src-tauri && cargo run --example export_bindings
+./scripts/package-local.sh
 ```
 
-## Project structure
+By default the package script builds and embeds `../findra/crates/findra-daemon`. Use `FINDRA_REPO=/path/to/findra` if the daemon repository is elsewhere.
 
-```
-src/
-├── App.tsx                    Main window root: onboarding gate -> SearchWindow
-├── preferences-main.tsx       Separate entry for the Preferences window
-├── features/
-│   ├── search/                Main window: toolbar, sidebar filters, results table, status bar
-│   ├── onboarding/            Full-disk-access / admin / CAP_BPF permission onboarding screen
-│   └── preferences/           Preferences window: General/Search/Excluded Directories/Shortcuts/About tabs
-└── lib/
-    ├── bindings.ts             Generated - do not hand-edit (see above)
-    ├── ipc.ts                  Thin unwrap-Result-into-throw wrapper over bindings.ts, for React Query
-    ├── fileType.ts / format.ts  Small client-side helpers (category classification, byte/date formatting)
+Install the local build into `/Applications`:
 
-src-tauri/src/
-├── ipc_client.rs        Daemon socket/pipe transport, built on findra_protocol's types + frame codec
-├── daemon_manager.rs    Daemon discovery (CLI-enhanced vs. standalone) + spawn/restart
-├── config_file.rs       Reads/writes only the `excluded_paths` key of ~/.findra/config.toml
-├── permissions/         Per-platform (macOS/Windows/Linux) permission status heuristics
-├── tray.rs / window.rs  Tray icon+menu, window show/hide/create
-└── commands.rs          Every #[tauri::command] the frontend calls (all #[specta::specta]-annotated)
-
-src-tauri/examples/export_bindings.rs   Standalone bindings regeneration, no GUI needed - a Cargo
-                                          *example*, not a second [[bin]], deliberately: Tauri's
-                                          bundler picks up every [[bin]] target and got confused
-                                          about which one was "the app" when there were two (see
-                                          ROADMAP.md's packaging section for the bug this caused).
+```bash
+./scripts/install-local.sh
 ```
 
-## Packaging
+Remove a local install:
 
-`tauri.conf.json`'s `bundle.targets` covers macOS (`.app`/`.dmg`), Windows (`.msi`/`.exe` via NSIS), and Linux (`.deb`/`.rpm`/`.AppImage`). `.github/workflows/release.yml` builds all of these across a `macos-latest`/`windows-latest`/`ubuntu-22.04` matrix on a `v*` tag push, using `tauri-apps/tauri-action`.
+```bash
+./scripts/uninstall-local.sh
+```
 
-Code signing/notarization (macOS) and EV code signing (Windows) are **not** configured - `tauri-action`'s signing inputs are simply omitted, so CI produces unsigned/unnotarized artifacts today. Follow-up before a real public release.
+## Download Distribution
 
-## Auto-update
+Findra is distributed as an open-source macOS app through GitHub Releases, not the Mac App Store. Release assets include:
 
-`tauri-plugin-updater` is wired up (`src-tauri/src/lib.rs`, `tauri.conf.json`'s `plugins.updater`) against a real signing keypair (generated via `tauri signer generate`, private key kept outside this repo). CI's `release.yml` expects `TAURI_SIGNING_PRIVATE_KEY`/`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` as GitHub Actions secrets - add the private key's contents and its password there before relying on CI to produce a working signed update artifact. The update manifest endpoint (`plugins.updater.endpoints` in `tauri.conf.json`) points at `github.com/findra/findra-app`'s latest release - update this once the real remote exists.
+- `.dmg`: recommended download for most users, with the daemon included inside `Findra.app`.
+- `.zip`: fallback download for users who prefer archives.
+- `.sha256`: checksum files for verifying downloads.
 
-## What's not done yet
+The local build is ad-hoc signed for development testing. Public downloads can run without Mac App Store distribution; Developer ID signing and notarization are still recommended before broad release to reduce Gatekeeper friction.
 
-- No real app icon (`src-tauri/icons/*` are still the default Tauri template icons) - `prd/findra_macos_appicon.svg` in the `findra` repo needs to go through `tauri icon` once it's rendered to a source PNG.
-- No `config.*` IPC method on the daemon yet - the Excluded Directories preference edits `~/.findra/config.toml` directly (see `config_file.rs`'s doc comment) and asks the user to restart the daemon, rather than a live IPC round trip.
-- Code signing/notarization (see Packaging, above).
-- No automated test suite for the frontend or the Rust shell yet.
+## License
+
+Findra for macOS is licensed under GPL-3.0-or-later. See [LICENSE](LICENSE).
+
+## Performance Checks
+
+Performance belongs mostly to the daemon and index engine. For the app, verify:
+
+- Warm search requests return without blocking the window.
+- Typing stays responsive while requests debounce.
+- Result rendering remains smooth at the default 1,000-row cap.
+- Daemon status refresh does not interrupt search input.
+- Cold daemon startup can still take longer on multi-million-file indexes while the daemon loads the persisted index.
+
+Use the daemon-side benchmark commands in the `findra` repository for index and query throughput.
+
+## Troubleshooting
+
+- `findra daemon is not running`: confirm the installed app contains `Contents/Resources/vendor-bin/findra-daemon`; development builds can also set `FINDRA_DAEMON_BIN=/path/to/findra-daemon`.
+- Compatibility warning: upgrade either the daemon or app so both use the same IPC contract.
+- Empty results with no error: confirm the daemon has indexed at least one watched path.
