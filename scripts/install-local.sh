@@ -10,7 +10,7 @@ if pgrep -x Findra >/dev/null 2>&1; then
   WAS_RUNNING=1
 fi
 
-"$ROOT/scripts/package-local.sh"
+KEEP_APP_BUNDLE=1 "$ROOT/scripts/package-local.sh"
 "$ROOT/scripts/uninstall-local.sh"
 
 ditto "$ROOT/build/Findra.app" "$APP_PATH"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="${VERSION:-1.1.2}"
+VERSION="${VERSION:-1.1.3}"
 CONFIGURATION="${CONFIGURATION:-release}"
 OUT_DIR="${OUT_DIR:-$ROOT/build}"
 FINDRA_REPO="${FINDRA_REPO:-$ROOT/../findra}"
@@ -102,6 +102,9 @@ rm -rf "$STAGE"
 shasum -a 256 "$DMG" > "$DMG.sha256"
 shasum -a 256 "$ZIP" > "$ZIP.sha256"
 
-printf '%s\n' "$APP_DIR"
+if [ "${KEEP_APP_BUNDLE:-0}" != "1" ]; then
+  rm -rf "$APP_DIR"
+fi
+
 printf '%s\n' "$DMG"
 printf '%s\n' "$ZIP"
