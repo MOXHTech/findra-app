@@ -96,7 +96,7 @@ final class SearchViewModel: ObservableObject {
     }
 
     var versionSummary: String {
-        let daemonVersion = stats?.daemonVersion.nilIfEmpty ?? "1.1.2"
+        let daemonVersion = stats?.daemonVersion.nilIfEmpty ?? "1.1.3"
         return "Findra \(appVersion) · daemon \(daemonVersion)"
     }
 
